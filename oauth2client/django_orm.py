@@ -30,13 +30,10 @@ __author__ = 'jcgregorio@google.com (Joe Gregorio)'
 
 
 class CredentialsField(models.Field):
-
-    __metaclass__ = models.SubfieldBase
-
     def __init__(self, *args, **kwargs):
         if 'null' not in kwargs:
             kwargs['null'] = True
-        super(CredentialsField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_internal_type(self):
         return "TextField"
@@ -46,12 +43,24 @@ class CredentialsField(models.Field):
             return None
         if isinstance(value, oauth2client.client.Credentials):
             return value
+
+        value = value.encode("utf-8")  # string to byte
+
         return pickle.loads(base64.b64decode(value))
+
+    def from_db_value(self, value, expression, connection, context):
+        return self.to_python(value)
 
     def get_db_prep_value(self, value, connection, prepared=False):
         if value is None:
             return None
-        return base64.b64encode(pickle.dumps(value))
+
+        byte_repr = base64.b64encode(pickle.dumps(value))
+
+        return byte_repr.decode("utf-8")  # byte to string
+
+    def get_prep_value(self, value):
+        return self.get_db_prep_value(value)
 
 
 class FlowField(models.Field):
